@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import time
 
 # Charger le modèle pré-entrainé
-model = load_model('age.h5')  # Remplacer par le chemin de votre modèle
+model = load_model('age_Resnet.h5')  # Remplacer par le chemin de votre modèle
 
 # Taille de l'image
 IMAGE_SIZE = [100, 100]
