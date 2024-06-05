@@ -1,16 +1,44 @@
 import cv2
 import numpy as np
 from tensorflow.keras.models import load_model
-from tensorflow.keras.applications.resnet50 import preprocess_input
 from PIL import Image
 import matplotlib.pyplot as plt
 import time
+import tensorflow as tf
 
-# Charger le modèle pré-entrainé
-model = load_model('age_Resnet.h5')  # Remplacer par le chemin de votre modèle
+print(f"TensorFlow version: {tf.__version__}")
+print(f"Keras version: {tf.keras.__version__}")
 
-# Taille de l'image
-IMAGE_SIZE = [100, 100]
+# Fonction pour charger le modèle et définir les dépendances
+def load_selected_model(model_choice):
+    if model_choice == 1:
+        model_path = 'age_Resnet.h5'
+        from tensorflow.keras.applications.resnet50 import preprocess_input
+        image_size = [100, 100]
+        #tester a un moment avec 224, 224
+        #image_size = [224, 224]
+    elif model_choice == 2:
+        model_path = 'age_Xception.h5'
+        from tensorflow.keras.applications.xception import preprocess_input
+        image_size = [299, 299]
+    elif model_choice == 3:
+        model_path = 'age_InceptionResnet.h5'
+        from tensorflow.keras.applications.inception_resnet_v2 import preprocess_input
+        image_size = [299, 299]
+    else:
+        raise ValueError("Invalid model choice. Please choose 1, 2, or 3.")
+    
+    model = load_model(model_path)
+    return model, preprocess_input, image_size
+
+# Sélection du modèle
+print("Choose a model to use:")
+print("1. ResNet (fichier age_Resnet.h5)")
+print("2. Xception (fichier age_Xception.h5)")
+print("3. Inception ResNet v2 (fichier age_InceptionResnet.h5)")
+model_choice = int(input("Enter the number of the model you want to use: "))
+
+model, preprocess_input, IMAGE_SIZE = load_selected_model(model_choice)
 
 # Liste des étiquettes de classes
 labels = ['001-004', '005-011', '012-018', '019-034', '035-044', '045-064', '065-110']
@@ -26,7 +54,7 @@ def preprocess_frame(frame):
     # Redimensionner l'image
     frame = cv2.resize(frame, (IMAGE_SIZE[0], IMAGE_SIZE[1]))
     
-    # Appliquer le prétraitement spécifique à ResNet50
+    # Appliquer le prétraitement spécifique au modèle choisi
     frame = preprocess_input(frame)
     
     # Ajouter une dimension pour correspondre au batch_size
@@ -84,7 +112,7 @@ while True:
         break
 
     # Ajouter un délai pour réduire le FPS
-    #time.sleep(0.5)
+    time.sleep(0.5)
 
 # Libérer les ressources
 cap.release()
