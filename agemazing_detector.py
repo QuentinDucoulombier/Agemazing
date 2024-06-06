@@ -5,18 +5,18 @@ from PIL import Image
 import matplotlib.pyplot as plt
 import time
 import tensorflow as tf
+from imutils.video import VideoStream
+import imutils
 
 print(f"TensorFlow version: {tf.__version__}")
 print(f"Keras version: {tf.keras.__version__}")
 
-# Fonction pour charger le modèle et définir les dépendances
+# Function to load the model and set dependencies
 def load_selected_model(model_choice):
     if model_choice == 1:
         model_path = 'age_Resnet.h5'
         from tensorflow.keras.applications.resnet50 import preprocess_input
         image_size = [100, 100]
-        #tester a un moment avec 224, 224
-        #image_size = [224, 224]
     elif model_choice == 2:
         model_path = 'age_Xception.h5'
         from tensorflow.keras.applications.xception import preprocess_input
@@ -31,45 +31,47 @@ def load_selected_model(model_choice):
     model = load_model(model_path)
     return model, preprocess_input, image_size
 
-# Sélection du modèle
+# Select the model
 print("Choose a model to use:")
-print("1. ResNet (fichier age_Resnet.h5)")
-print("2. Xception (fichier age_Xception.h5)")
-print("3. Inception ResNet v2 (fichier age_InceptionResnet.h5)")
+print("1. ResNet (file age_Resnet.h5)")
+print("2. Xception (file age_Xception.h5)")
+print("3. Inception ResNet v2 (file age_InceptionResnet.h5)")
 model_choice = int(input("Enter the number of the model you want to use: "))
 
 model, preprocess_input, IMAGE_SIZE = load_selected_model(model_choice)
 
-# Liste des étiquettes de classes
+# List of class labels
 labels = ['001-004', '005-011', '012-018', '019-034', '035-044', '045-064', '065-110']
 
-# Charger le classificateur de visage de OpenCV
-face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+# Load OpenCV's deep learning face detector
+prototxt_path = 'deploy.prototxt'
+model_path = 'res10_300x300_ssd_iter_140000_fp16.caffemodel'
+net = cv2.dnn.readNetFromCaffe(prototxt_path, model_path)
 
 def preprocess_frame(frame):
-    # Convertir l'image en RGB si ce n'est pas déjà fait
-    if frame.shape[2] == 3:  # Si l'image a 3 canaux
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    # Convert the image to RGB if it's not already
+    # if frame.shape[2] == 3:  # If the image has 3 channels
+    #     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     
-    # Redimensionner l'image
+    # Resize the image
     frame = cv2.resize(frame, (IMAGE_SIZE[0], IMAGE_SIZE[1]))
     
-    # Appliquer le prétraitement spécifique au modèle choisi
+    # Apply the preprocessing specific to the chosen model
     frame = preprocess_input(frame)
     
-    # Ajouter une dimension pour correspondre au batch_size
+    # Add a dimension to match the batch size
     frame = frame.reshape(1, IMAGE_SIZE[0], IMAGE_SIZE[1], 3)
     
     return frame
 
 def predict_age(face):
-    # Prétraiter l'image
+    # Preprocess the image
     processed_face = preprocess_frame(face)
     
-    # Faire la prédiction
+    # Make the prediction
     prediction = model.predict(processed_face)
     
-    # Obtenir l'âge prédit
+    # Get the predicted age
     predicted_age = labels[np.argmax(prediction)]
     pred_list = {x: float(y) for x, y in zip(labels, prediction[0])}
     pred_list = dict(sorted(pred_list.items(), reverse=True, key=lambda item: item[1]))
@@ -77,43 +79,63 @@ def predict_age(face):
     
     return predicted_age
 
-# Capture vidéo depuis la webcam
-cap = cv2.VideoCapture(0)
+# Capture video from the webcam
+cap = VideoStream(src=0).start()
+time.sleep(2.0)
 
 while True:
-    ret, frame = cap.read()
-    if not ret:
+    frame = cap.read()
+    if frame is None:
         break
 
-    # Convertir l'image de BGR à RGB pour la détection de visage
-    gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    
-    # Détecter les visages
-    faces = face_cascade.detectMultiScale(gray_frame, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
-    
-    for (x, y, w, h) in faces:
-        # Extraire le visage de l'image
-        face = frame[y:y+h, x:x+w]
-        
-        # Prédire l'âge
-        age = predict_age(face)
-        
-        # Afficher la prédiction sur l'image
-        cv2.putText(frame, f'Predicted Age: {age}', (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 0, 0), 2, cv2.LINE_AA)
-        
-        # Dessiner un rectangle autour du visage détecté
-        cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 2)
+    # Resize the frame for faster processing
+    frame = imutils.resize(frame, width=400)
 
-    # Afficher l'image
+    # Convert the frame dimensions
+    (h, w) = frame.shape[:2]
+    blob = cv2.dnn.blobFromImage(cv2.resize(frame, (300, 300)), 1.0, (300, 300), (104.0, 177.0, 123.0))
+
+    # Pass the blob through the network and get the detections
+    net.setInput(blob)
+    detections = net.forward()
+
+    # Loop over the detections
+    for i in range(0, detections.shape[2]):
+        # Extract the confidence (probability)
+        confidence = detections[0, 0, i, 2]
+
+        # Filter out weak detections
+        if confidence < 0.5:
+            continue
+
+        # Compute the (x, y)-coordinates of the bounding box for the object
+        box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
+        (startX, startY, endX, endY) = box.astype("int")
+
+        # Extract the face ROI
+        face = frame[startY:endY, startX:endX]
+
+        # Predict the age
+        age = predict_age(face)
+
+        # Display the prediction on the image
+        text = f'Predicted Age: {age}'
+        y = startY - 10 if startY - 10 > 10 else startY + 10
+        cv2.rectangle(frame, (startX, startY), (endX, endY), (255, 0, 0), 2)
+        cv2.putText(frame, text, (startX, y), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 0, 0), 2)
+
+    # Show the output frame
     cv2.imshow('Age Prediction', frame)
 
-    # Sortir de la boucle si la touche 'q' est pressée
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+    # Capture a photo of the detected face if 'A' key is pressed
+    key = cv2.waitKey(1) & 0xFF
+    if key == ord('a'):
+        cv2.imwrite("detected_face.jpg", face)
+
+    # Break from the loop if the 'q' key was pressed
+    elif key == ord('q'):
         break
 
-    # Ajouter un délai pour réduire le FPS
-    time.sleep(0.5)
-
-# Libérer les ressources
-cap.release()
+# Cleanup
 cv2.destroyAllWindows()
+cap.stop()
