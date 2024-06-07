@@ -49,10 +49,6 @@ model_path = 'res10_300x300_ssd_iter_140000_fp16.caffemodel'
 net = cv2.dnn.readNetFromCaffe(prototxt_path, model_path)
 
 def preprocess_frame(frame):
-    # Convert the image to RGB if it's not already
-    # if frame.shape[2] == 3:  # If the image has 3 channels
-    #     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    
     # Resize the image
     frame = cv2.resize(frame, (IMAGE_SIZE[0], IMAGE_SIZE[1]))
     
@@ -139,3 +135,4 @@ while True:
 # Cleanup
 cv2.destroyAllWindows()
 cap.stop()
+cap.stream.release()
