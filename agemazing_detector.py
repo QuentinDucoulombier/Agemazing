@@ -48,6 +48,22 @@ prototxt_path = 'deploy.prototxt'
 model_path = 'res10_300x300_ssd_iter_140000_fp16.caffemodel'
 net = cv2.dnn.readNetFromCaffe(prototxt_path, model_path)
 
+# def apply_clahe(image):
+#     # Convert the image to LAB color space
+#     lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+#     l, a, b = cv2.split(lab)
+
+#     # Apply CLAHE to the L channel
+#     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+#     cl = clahe.apply(l)
+
+#     # Merge the CLAHE enhanced L channel with the a and b channels
+#     limg = cv2.merge((cl, a, b))
+
+#     # Convert the image back to BGR color space
+#     final_image = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+#     return final_image
+
 def preprocess_frame(frame):
     # Resize the image
     frame = cv2.resize(frame, (IMAGE_SIZE[0], IMAGE_SIZE[1]))
@@ -74,6 +90,25 @@ def predict_age(face):
     print(pred_list)
     
     return predicted_age
+
+def get_square_box(startX, startY, endX, endY, frame_shape):
+    # Calculate width and height of the bounding box
+    width = endX - startX
+    height = endY - startY
+
+    # Determine the size of the square box
+    max_dim = max(width, height)
+
+    # Calculate new start and end points for the square box
+    centerX = startX + width // 2
+    centerY = startY + height // 2
+
+    new_startX = max(centerX - max_dim // 2, 0)
+    new_startY = max(centerY - max_dim // 2, 0)
+    new_endX = min(centerX + max_dim // 2, frame_shape[1])
+    new_endY = min(centerY + max_dim // 2, frame_shape[0])
+
+    return new_startX, new_startY, new_endX, new_endY
 
 # Capture video from the webcam
 cap = VideoStream(src=0).start()
@@ -108,6 +143,9 @@ while True:
         box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
         (startX, startY, endX, endY) = box.astype("int")
 
+        # Adjust the bounding box to be a square
+        startX, startY, endX, endY = get_square_box(startX, startY, endX, endY, frame.shape)
+
         # Extract the face ROI
         face = frame[startY:endY, startX:endX]
 
@@ -126,7 +164,12 @@ while True:
     # Capture a photo of the detected face if 'A' key is pressed
     key = cv2.waitKey(1) & 0xFF
     if key == ord('a'):
-        cv2.imwrite("detected_face.jpg", face)
+        # Save the original face image
+        cv2.imwrite("detected_face_original.jpg", face)
+        
+        # Save the CLAHE-processed face image
+        # face_clahe = apply_clahe(face)
+        # cv2.imwrite("detected_face_clahe.jpg", face_clahe)
 
     # Break from the loop if the 'q' key was pressed
     elif key == ord('q'):
