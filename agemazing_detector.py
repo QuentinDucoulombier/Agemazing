@@ -1,12 +1,13 @@
 import cv2
 import numpy as np
-from tensorflow.keras.models import load_model
+from tensorflow.keras.models import load_model # type: ignore
 from PIL import Image
 import matplotlib.pyplot as plt
 import time
 import tensorflow as tf
 from imutils.video import VideoStream
 import imutils
+import dlib
 
 print(f"TensorFlow version: {tf.__version__}")
 print(f"Keras version: {tf.keras.__version__}")
@@ -14,19 +15,23 @@ print(f"Keras version: {tf.keras.__version__}")
 # Function to load the model and set dependencies
 def load_selected_model(model_choice):
     if model_choice == 1:
-        model_path = 'age_Resnet.h5'
-        from tensorflow.keras.applications.resnet50 import preprocess_input
-        image_size = [100, 100]
+        model_path = 'age_resnet_final(1).h5'
+        from tensorflow.keras.applications.resnet50 import preprocess_input # type: ignore
+        image_size = [224, 224]
     elif model_choice == 2:
-        model_path = 'age_Xception.h5'
-        from tensorflow.keras.applications.xception import preprocess_input
+        model_path = 'age_xception_final.h5'
+        from tensorflow.keras.applications.xception import preprocess_input # type: ignore
         image_size = [299, 299]
     elif model_choice == 3:
-        model_path = 'age_InceptionResnet.h5'
-        from tensorflow.keras.applications.inception_resnet_v2 import preprocess_input
+        model_path = 'age_inceptionresnetv2_overfitting.h5'
+        from tensorflow.keras.applications.inception_resnet_v2 import preprocess_input # type: ignore
         image_size = [299, 299]
+    elif model_choice == 4:
+        model_path = 'age_mobileNetV3_nooverfitting.h5'
+        from tensorflow.keras.applications.mobilenet_v3 import preprocess_input # type: ignore
+        image_size = [224, 224]
     else:
-        raise ValueError("Invalid model choice. Please choose 1, 2, or 3.")
+        raise ValueError("Invalid model choice. Please choose 1, 2, 3 or 4.")
     
     model = load_model(model_path)
     return model, preprocess_input, image_size
@@ -36,44 +41,66 @@ print("Choose a model to use:")
 print("1. ResNet (file age_Resnet.h5)")
 print("2. Xception (file age_Xception.h5)")
 print("3. Inception ResNet v2 (file age_InceptionResnet.h5)")
+print("4. MobileNetV3 (file age_MobileNetV3.h5)")
 model_choice = int(input("Enter the number of the model you want to use: "))
 
 model, preprocess_input, IMAGE_SIZE = load_selected_model(model_choice)
 
 # List of class labels
-labels = ['001-004', '005-011', '012-018', '019-034', '035-044', '045-064', '065-110']
+labels = ['baby', 'child', 'student', 'young adult', 'adult', 'senior']
 
 # Load OpenCV's deep learning face detector
 prototxt_path = 'deploy.prototxt'
 model_path = 'res10_300x300_ssd_iter_140000_fp16.caffemodel'
 net = cv2.dnn.readNetFromCaffe(prototxt_path, model_path)
 
-# def apply_clahe(image):
-#     # Convert the image to LAB color space
-#     lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
-#     l, a, b = cv2.split(lab)
+# Load dlib's face detector and shape predictor for alignment
+predictor_path = 'shape_predictor_68_face_landmarks.dat'
+detector = dlib.get_frontal_face_detector()
+predictor = dlib.shape_predictor(predictor_path)
 
-#     # Apply CLAHE to the L channel
-#     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-#     cl = clahe.apply(l)
+def align_face(image, left_eye, right_eye, nose):
+    left_eye_center = np.array(left_eye, dtype=np.float32)
+    right_eye_center = np.array(right_eye, dtype=np.float32)
+    
+    # Calculate the center point between the two eyes
+    eyes_center = ((left_eye_center[0] + right_eye_center[0]) * 0.5, 
+                   (left_eye_center[1] + right_eye_center[1]) * 0.5)
+    
+    # Calculate the angle between the eye line and the horizontal
+    dy = right_eye_center[1] - left_eye_center[1]
+    dx = right_eye_center[0] - left_eye_center[0]
+    angle = np.degrees(np.arctan2(dy, dx)) - 180
 
-#     # Merge the CLAHE enhanced L channel with the a and b channels
-#     limg = cv2.merge((cl, a, b))
+    # Ensure the angle is between -90 and 90
+    if angle > 90:
+        angle -= 180
+    elif angle < -90:
+        angle += 180
 
-#     # Convert the image back to BGR color space
-#     final_image = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
-#     return final_image
+    # Get the rotation matrix
+    M = cv2.getRotationMatrix2D(eyes_center, angle, 1.0)
+    
+    # Apply the affine transformation
+    output = cv2.warpAffine(image, M, (image.shape[1], image.shape[0]), flags=cv2.INTER_CUBIC)
+    
+    return output
+
 
 def preprocess_frame(frame):
+
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
     # Resize the image
     frame = cv2.resize(frame, (IMAGE_SIZE[0], IMAGE_SIZE[1]))
+
     
     # Apply the preprocessing specific to the chosen model
     frame = preprocess_input(frame)
     
     # Add a dimension to match the batch size
     frame = frame.reshape(1, IMAGE_SIZE[0], IMAGE_SIZE[1], 3)
-    
+
     return frame
 
 def predict_age(face):
@@ -114,13 +141,17 @@ def get_square_box(startX, startY, endX, endY, frame_shape):
 cap = VideoStream(src=0).start()
 time.sleep(2.0)
 
+# Set the window to full screen
+cv2.namedWindow('Age Prediction', cv2.WND_PROP_FULLSCREEN)
+cv2.setWindowProperty('Age Prediction', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+
 while True:
     frame = cap.read()
     if frame is None:
         break
 
     # Resize the frame for faster processing
-    frame = imutils.resize(frame, width=400)
+    frame = imutils.resize(frame, width=800)
 
     # Convert the frame dimensions
     (h, w) = frame.shape[:2]
@@ -149,6 +180,23 @@ while True:
         # Extract the face ROI
         face = frame[startY:endY, startX:endX]
 
+         # Convert face to grayscale
+        gray = cv2.cvtColor(face, cv2.COLOR_BGR2GRAY)
+
+        # Detect landmarks
+        rect = dlib.rectangle(0, 0, face.shape[1], face.shape[0])
+        shape = predictor(gray, rect)
+        shape = [(shape.part(i).x, shape.part(i).y) for i in range(68)]
+
+        # Get coordinates of the eyes and nose
+        left_eye = np.mean(shape[36:42], axis=0).astype("int")
+        right_eye = np.mean(shape[42:48], axis=0).astype("int")
+        nose = np.mean(shape[27:35], axis=0).astype("int")
+
+        # # Align face
+        aligned_face = align_face(face, left_eye, right_eye, nose)
+
+
         # Predict the age
         age = predict_age(face)
 
@@ -166,6 +214,9 @@ while True:
     if key == ord('a'):
         # Save the original face image
         cv2.imwrite("detected_face_original.jpg", face)
+
+        # Save the aligned face image
+        cv2.imwrite("detected_face_aligned.jpg", aligned_face)
         
         # Save the CLAHE-processed face image
         # face_clahe = apply_clahe(face)
@@ -179,3 +230,4 @@ while True:
 cv2.destroyAllWindows()
 cap.stop()
 cap.stream.release()
+cap.stream = None
