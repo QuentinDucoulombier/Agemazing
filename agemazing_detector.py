@@ -15,19 +15,19 @@ print(f"Keras version: {tf.keras.__version__}")
 # Function to load the model and set dependencies
 def load_selected_model(model_choice):
     if model_choice == 1:
-        model_path = 'age_resnet_final(1).h5'
+        model_path = 'model-dataset/age_resnet_final.h5'
         from tensorflow.keras.applications.resnet50 import preprocess_input # type: ignore
         image_size = [224, 224]
     elif model_choice == 2:
-        model_path = 'age_xception_final.h5'
+        model_path = 'model-dataset/age_xception_final.h5'
         from tensorflow.keras.applications.xception import preprocess_input # type: ignore
         image_size = [299, 299]
     elif model_choice == 3:
-        model_path = 'age_inceptionresnetv2_overfitting.h5'
+        model_path = 'model-dataset/age_inceptionresnetv2_final.h5'
         from tensorflow.keras.applications.inception_resnet_v2 import preprocess_input # type: ignore
         image_size = [299, 299]
     elif model_choice == 4:
-        model_path = 'age_mobileNetV3_nooverfitting.h5'
+        model_path = 'model-dataset/age_mobileNetV3_final.h5'
         from tensorflow.keras.applications.mobilenet_v3 import preprocess_input # type: ignore
         image_size = [224, 224]
     else:
@@ -38,10 +38,10 @@ def load_selected_model(model_choice):
 
 # Select the model
 print("Choose a model to use:")
-print("1. ResNet (file age_Resnet.h5)")
-print("2. Xception (file age_Xception.h5)")
-print("3. Inception ResNet v2 (file age_InceptionResnet.h5)")
-print("4. MobileNetV3 (file age_MobileNetV3.h5)")
+print("1. ResNet")
+print("2. Xception")
+print("3. Inception ResNet v2")
+print("4. MobileNetV3")
 model_choice = int(input("Enter the number of the model you want to use: "))
 
 model, preprocess_input, IMAGE_SIZE = load_selected_model(model_choice)
@@ -50,12 +50,12 @@ model, preprocess_input, IMAGE_SIZE = load_selected_model(model_choice)
 labels = ['baby', 'child', 'student', 'young adult', 'adult', 'senior']
 
 # Load OpenCV's deep learning face detector
-prototxt_path = 'deploy.prototxt'
-model_path = 'res10_300x300_ssd_iter_140000_fp16.caffemodel'
+prototxt_path = './face-detection-dataset/deploy.prototxt'
+model_path = './face-detection-dataset/res10_300x300_ssd_iter_140000_fp16.caffemodel'
 net = cv2.dnn.readNetFromCaffe(prototxt_path, model_path)
 
 # Load dlib's face detector and shape predictor for alignment
-predictor_path = 'shape_predictor_68_face_landmarks.dat'
+predictor_path = './face-detection-dataset/shape_predictor_68_face_landmarks.dat'
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor(predictor_path)
 
