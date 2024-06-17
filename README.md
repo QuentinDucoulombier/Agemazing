@@ -17,7 +17,7 @@ The AgeMazing project aims to develop a face detection system capable of accurat
 1. Clone the repository.
 
    ```bash
-   git clone https://github.com/your-repo/AgeMazing.git
+   git clone https://github.com/QuentinDucoulombier/Agemazing.git
    ```
 
 2. Navigate to the project directory.
