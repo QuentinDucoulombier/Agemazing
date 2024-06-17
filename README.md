@@ -26,13 +26,13 @@ The AgeMazing project aims to develop a face detection system capable of accurat
    cd AgeMazing
    ```
 
-3. Install the required libraries.
+3. **Make sure you have Python 3.7.10 installed.**
+
+4. Install the required libraries.
 
    ```bash
    pip install -r requirements.txt
    ```
-
-4. **Make sure you have Python 3.7.10 installed.**
 
 ## Usage
 
@@ -52,6 +52,10 @@ The AgeMazing project aims to develop a face detection system capable of accurat
 You can find the notebook and model implementation on Kaggle:
 [AgeMazing on Kaggle](https://www.kaggle.com/code/quentinducoulombier/agemazing-model)
 
-### Project Report
+## Project Report
 
 For detailed information about the project, refer to the [AgeMazing Final Report](./assets/AgeMazing-FinalReport.pdf).
+
+## Support
+
+If you encounter any issues, please open an issue on GitHub: [AgeMazing Issues](https://github.com/QuentinDucoulombier/Agemazing/issues) or send an email to ducoulombi@cy-tech.fr.
