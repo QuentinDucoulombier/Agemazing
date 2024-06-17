@@ -23,11 +23,11 @@ def load_selected_model(model_choice):
         from tensorflow.keras.applications.xception import preprocess_input # type: ignore
         image_size = [299, 299]
     elif model_choice == 3:
-        model_path = 'model-dataset/age_inceptionresnetv2_final.h5'
+        model_path = 'model-dataset/age_inceptionresnet_final.h5'
         from tensorflow.keras.applications.inception_resnet_v2 import preprocess_input # type: ignore
         image_size = [299, 299]
     elif model_choice == 4:
-        model_path = 'model-dataset/age_mobileNetV3_final.h5'
+        model_path = 'model-dataset/age_mobilenet_final.h5'
         from tensorflow.keras.applications.mobilenet_v3 import preprocess_input # type: ignore
         image_size = [224, 224]
     else:
