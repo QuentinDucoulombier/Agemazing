@@ -50,7 +50,7 @@ The AgeMazing project aims to develop a face detection system capable of accurat
 ## Model on Kaggle
 
 You can find the notebook and model implementation on Kaggle:
-[AgeMazing on Kaggle](https://www.kaggle.com/code/quentinducoulombier/agemazing/edit)
+[AgeMazing on Kaggle](https://www.kaggle.com/code/quentinducoulombier/agemazing-model)
 
 ### Project Report
 
